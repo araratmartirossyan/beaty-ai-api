@@ -1,0 +1,451 @@
+import swaggerJsdoc from 'swagger-jsdoc';
+
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Beauty License Manager API',
+    version: '1.0.0',
+    description: 'API documentation for the Beauty License Manager - A RAG backend with license management',
+    contact: {
+      name: 'API Support',
+    },
+  },
+  servers: [
+    {
+      url: `http://localhost:${process.env.PORT || 3000}`,
+      description: 'Development server',
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+    },
+    schemas: {
+      User: {
+        type: 'object',
+        description: 'User object (password field is excluded from responses)',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID',
+          },
+          email: {
+            type: 'string',
+            format: 'email',
+            description: 'User email address',
+          },
+          role: {
+            type: 'string',
+            enum: ['ADMIN', 'CUSTOMER'],
+            description: 'User role',
+          },
+          licenses: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/License',
+            },
+            description: 'User licenses (when relations are loaded)',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      License: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'License ID',
+          },
+          key: {
+            type: 'string',
+            description: 'License key (UUID)',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether the license is active',
+          },
+          expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            description: 'License expiration date (null for no expiration)',
+          },
+          user: {
+            $ref: '#/components/schemas/User',
+          },
+          knowledgeBases: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/KnowledgeBase',
+            },
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      KnowledgeBase: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Knowledge Base ID',
+          },
+          name: {
+            type: 'string',
+            description: 'Knowledge Base name',
+          },
+          description: {
+            type: 'string',
+            nullable: true,
+            description: 'Knowledge Base description',
+          },
+          documents: {
+            type: 'object',
+            nullable: true,
+            description: 'Metadata about uploaded documents',
+          },
+          promptInstructions: {
+            type: 'string',
+            nullable: true,
+            description: 'Custom prompt instructions for this knowledge base (per customer)',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      RegisterRequest: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            description: 'User email address',
+          },
+          password: {
+            type: 'string',
+            minLength: 6,
+            description: 'User password',
+          },
+          role: {
+            type: 'string',
+            enum: ['ADMIN', 'CUSTOMER'],
+            default: 'CUSTOMER',
+            description: 'User role (defaults to CUSTOMER)',
+          },
+        },
+      },
+      LoginRequest: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+          },
+          password: {
+            type: 'string',
+          },
+        },
+      },
+      AuthResponse: {
+        type: 'object',
+        properties: {
+          token: {
+            type: 'string',
+            description: 'JWT authentication token',
+          },
+          user: {
+            $ref: '#/components/schemas/User',
+          },
+        },
+      },
+      CreateLicenseRequest: {
+        type: 'object',
+        required: ['userId'],
+        properties: {
+          userId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID to associate the license with',
+          },
+          validityPeriodDays: {
+            type: 'number',
+            minimum: 1,
+            description: 'Number of days until license expires (optional, if not provided license never expires)',
+          },
+        },
+      },
+      CreateKnowledgeBaseRequest: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Knowledge Base name',
+          },
+          description: {
+            type: 'string',
+            nullable: true,
+            description: 'Knowledge Base description',
+          },
+          documents: {
+            type: 'object',
+            nullable: true,
+            description: 'Metadata about documents',
+          },
+          promptInstructions: {
+            type: 'string',
+            nullable: true,
+            description: 'Custom prompt instructions for this knowledge base (per customer)',
+          },
+        },
+      },
+      AIConfiguration: {
+        type: 'object',
+        description: 'Global AI Configuration',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Configuration ID',
+          },
+          key: {
+            type: 'string',
+            description: 'Configuration key (default: "default")',
+            example: 'default',
+          },
+          llmProvider: {
+            type: 'string',
+            enum: ['OPENAI', 'GEMINI', 'ANTHROPIC'],
+            description: 'LLM provider',
+          },
+          model: {
+            type: 'string',
+            nullable: true,
+            description: 'Model name (e.g., "gpt-4", "gemini-pro", "claude-3-sonnet-20240229")',
+          },
+          temperature: {
+            type: 'number',
+            nullable: true,
+            description: 'Temperature (0.0 to 2.0 for Gemini, 0.0 to 1.0 for OpenAI/Anthropic)',
+            minimum: 0,
+            maximum: 2,
+          },
+          maxTokens: {
+            type: 'integer',
+            nullable: true,
+            description: 'Maximum tokens to generate',
+          },
+          topP: {
+            type: 'number',
+            nullable: true,
+            description: 'Nucleus sampling parameter (0.0 to 1.0)',
+            minimum: 0,
+            maximum: 1,
+          },
+          topK: {
+            type: 'integer',
+            nullable: true,
+            description: 'Top-k sampling (Gemini/Anthropic)',
+          },
+          frequencyPenalty: {
+            type: 'number',
+            nullable: true,
+            description: 'Frequency penalty (OpenAI only: -2.0 to 2.0)',
+            minimum: -2,
+            maximum: 2,
+          },
+          presencePenalty: {
+            type: 'number',
+            nullable: true,
+            description: 'Presence penalty (OpenAI only: -2.0 to 2.0)',
+            minimum: -2,
+            maximum: 2,
+          },
+          stopSequences: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            nullable: true,
+            description: 'Stop sequences (Gemini/Anthropic)',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      UpdateAIConfigRequest: {
+        type: 'object',
+        description: 'Request body for updating AI configuration',
+        properties: {
+          llmProvider: {
+            type: 'string',
+            enum: ['OPENAI', 'GEMINI', 'ANTHROPIC'],
+            description: 'LLM provider',
+          },
+          model: {
+            type: 'string',
+            nullable: true,
+            description: 'Model name',
+          },
+          temperature: {
+            type: 'number',
+            nullable: true,
+            description: 'Temperature',
+          },
+          maxTokens: {
+            type: 'integer',
+            nullable: true,
+            description: 'Maximum tokens',
+          },
+          topP: {
+            type: 'number',
+            nullable: true,
+            description: 'Top-p parameter',
+          },
+          topK: {
+            type: 'integer',
+            nullable: true,
+            description: 'Top-k parameter',
+          },
+          frequencyPenalty: {
+            type: 'number',
+            nullable: true,
+            description: 'Frequency penalty (OpenAI only)',
+          },
+          presencePenalty: {
+            type: 'number',
+            nullable: true,
+            description: 'Presence penalty (OpenAI only)',
+          },
+          stopSequences: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            nullable: true,
+            description: 'Stop sequences',
+          },
+        },
+      },
+      AttachKnowledgeBaseRequest: {
+        type: 'object',
+        required: ['kbId', 'licenseId'],
+        properties: {
+          kbId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Knowledge Base ID',
+          },
+          licenseId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'License ID',
+          },
+        },
+      },
+      ChatRequest: {
+        type: 'object',
+        required: ['question', 'licenseKey'],
+        properties: {
+          question: {
+            type: 'string',
+            description: 'Question to ask the RAG system',
+          },
+          licenseKey: {
+            type: 'string',
+            description: 'License key to use for the query',
+          },
+          kbId: {
+            type: 'string',
+            format: 'uuid',
+            nullable: true,
+            description: 'Knowledge Base ID to use (optional, uses first KB if not specified)',
+          },
+        },
+      },
+      ChatResponse: {
+        type: 'object',
+        properties: {
+          answer: {
+            type: 'string',
+            description: 'Answer from the RAG system',
+          },
+        },
+      },
+      UploadDocumentRequest: {
+        type: 'object',
+        required: ['text', 'licenseKey', 'kbId'],
+        properties: {
+          text: {
+            type: 'string',
+            description: 'Document text content',
+          },
+          metadata: {
+            type: 'object',
+            nullable: true,
+            description: 'Document metadata',
+          },
+          licenseKey: {
+            type: 'string',
+            description: 'License key to associate the document with',
+          },
+          kbId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Knowledge Base ID to ingest document into',
+          },
+        },
+      },
+      ErrorResponse: {
+        type: 'object',
+        properties: {
+          message: {
+            type: 'string',
+            description: 'Error message',
+          },
+        },
+      },
+    },
+  },
+};
+
+const options = {
+  definition: swaggerDefinition,
+  apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
+};
+
+export const swaggerSpec = swaggerJsdoc(options);
