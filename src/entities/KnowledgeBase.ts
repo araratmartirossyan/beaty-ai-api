@@ -1,5 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToMany,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { License } from './License';
+import { Document } from './Document';
 
 export enum LLMProvider {
   OPENAI = 'OPENAI',
@@ -19,10 +28,13 @@ export class KnowledgeBase {
   description!: string;
 
   @Column('simple-json', { nullable: true })
-  documents!: any; // Stores metadata about uploaded files
+  documents!: any; // Deprecated: Use Document entity instead
 
   @Column('text', { nullable: true })
   promptInstructions!: string | null; // Custom prompt instructions for this knowledge base
+
+  @OneToMany(() => Document, (document) => document.knowledgeBase)
+  pdfDocuments!: Document[];
 
   @ManyToMany(() => License, (license) => license.knowledgeBases)
   licenses!: License[];

@@ -122,12 +122,70 @@ const swaggerDefinition = {
           documents: {
             type: 'object',
             nullable: true,
-            description: 'Metadata about uploaded documents',
+            description: 'Deprecated: Metadata about uploaded documents (use pdfDocuments instead)',
+          },
+          pdfDocuments: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/Document',
+            },
+            description: 'List of uploaded PDF documents',
           },
           promptInstructions: {
             type: 'string',
             nullable: true,
             description: 'Custom prompt instructions for this knowledge base (per customer)',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      Document: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Document ID',
+          },
+          fileName: {
+            type: 'string',
+            description: 'Original filename of the uploaded PDF',
+          },
+          filePath: {
+            type: 'string',
+            description: 'Path to the stored PDF file',
+          },
+          metadata: {
+            type: 'object',
+            nullable: true,
+            description: 'Document metadata (file size, page count, etc.)',
+            properties: {
+              fileSize: {
+                type: 'number',
+                description: 'File size in bytes',
+              },
+              pageCount: {
+                type: 'number',
+                description: 'Number of pages in the PDF',
+              },
+              uploadedAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'Upload timestamp',
+              },
+            },
+          },
+          knowledgeBaseId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Knowledge Base ID this document belongs to',
           },
           createdAt: {
             type: 'string',

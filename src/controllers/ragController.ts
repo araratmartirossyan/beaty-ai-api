@@ -66,7 +66,8 @@ export const chat = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'No knowledge base found for this license' });
     }
 
-    const answer = await ragService.query(licenseKey, question, knowledgeBase.promptInstructions);
+    // Query using kbId instead of licenseKey
+    const answer = await ragService.query(knowledgeBase.id, question, knowledgeBase.promptInstructions);
     return res.json({ answer });
   } catch (error: any) {
     console.error(error);
@@ -130,7 +131,8 @@ export const uploadDocument = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Knowledge base not attached to this license' });
     }
 
-    await ragService.ingestDocument(licenseKey, text, metadata);
+    // Use kbId instead of licenseKey for RAG ingestion
+    await ragService.ingestDocument(kbId, text, metadata);
     return res.status(200).json({ message: 'Document ingested successfully' });
   } catch (error: any) {
     console.error(error);

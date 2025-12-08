@@ -4,6 +4,7 @@ import { User } from './entities/User';
 import { License } from './entities/License';
 import { KnowledgeBase } from './entities/KnowledgeBase';
 import { Configuration } from './entities/Configuration';
+import { Document } from './entities/Document';
 import dotenv from 'dotenv';
 dotenv.config();
 console.log(process.env.DB_HOST);
@@ -24,7 +25,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'beauty_db',
   synchronize: process.env.NODE_ENV !== 'production', // Set to false in production and use migrations
   logging: process.env.DB_LOGGING === 'true',
-  entities: [User, License, KnowledgeBase, Configuration],
+  entities: [User, License, KnowledgeBase, Configuration, Document],
   migrations: [],
   ssl: {
     rejectUnauthorized: false,

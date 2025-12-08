@@ -31,11 +31,11 @@ const getGlobalConfig = async (): Promise<Configuration> => {
 };
 
 // In-memory store for demonstration. In production, use a persistent vector DB.
-// We will map licenseKey -> VectorStore
+// We map kbId -> VectorStore (each Knowledge Base has its own vector store)
 const vectorStores: Map<string, SimpleMemoryVectorStore> = new Map();
 
 export class RagService {
-  async ingestDocument(licenseKey: string, text: string, metadata: any) {
+  async ingestDocument(kbId: string, text: string, metadata: any) {
     const config = await getGlobalConfig();
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
@@ -45,19 +45,19 @@ export class RagService {
     const docs = await splitter.createDocuments([text], metadata);
     const embeddings = await EmbeddingsProviderService.getEmbeddings(config.llmProvider || LLMProvider.OPENAI);
 
-    let store = vectorStores.get(licenseKey);
+    let store = vectorStores.get(kbId);
     if (!store) {
       store = await SimpleMemoryVectorStore.fromDocuments(docs, embeddings);
-      vectorStores.set(licenseKey, store);
+      vectorStores.set(kbId, store);
     } else {
       await store.addDocuments(docs);
     }
   }
 
-  async query(licenseKey: string, question: string, promptInstructions: string | null = null) {
-    const store = vectorStores.get(licenseKey);
+  async query(kbId: string, question: string, promptInstructions: string | null = null) {
+    const store = vectorStores.get(kbId);
     if (!store) {
-      return 'No knowledge base found for this license.';
+      return 'No documents found in this knowledge base. Please upload PDF documents first.';
     }
 
     // Simple retrieval

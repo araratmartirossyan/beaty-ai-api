@@ -33,6 +33,9 @@ Thumbs.db
 logs/
 *.log
 
+# Uploads
+uploads/
+
 # Docker
 docker-compose.override.yml
 
