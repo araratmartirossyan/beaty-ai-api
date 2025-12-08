@@ -24,9 +24,21 @@ export const createLicense = async (req: Request, res: Response) => {
   const { userId, validityPeriodDays } = req.body;
 
   try {
-    const user = await userRepository.findOneBy({ id: userId });
+    const user = await userRepository.findOne({
+      where: { id: userId },
+      relations: ['license'],
+    });
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user already has a license
+    if (user.license) {
+      return res.status(400).json({
+        message: 'User already has a license. Each user can only have one license.',
+        existingLicenseId: user.license.id,
+      });
     }
 
     // Calculate expiration date if validityPeriodDays is provided
@@ -41,7 +53,7 @@ export const createLicense = async (req: Request, res: Response) => {
 
     const license = licenseRepository.create({
       key: uuidv4(),
-      user,
+      user: { id: user.id },
       expiresAt,
       isActive: true,
     });

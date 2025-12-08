@@ -44,12 +44,10 @@ const swaggerDefinition = {
             enum: ['ADMIN', 'CUSTOMER'],
             description: 'User role',
           },
-          licenses: {
-            type: 'array',
-            items: {
-              $ref: '#/components/schemas/License',
-            },
-            description: 'User licenses (when relations are loaded)',
+          license: {
+            $ref: '#/components/schemas/License',
+            nullable: true,
+            description: 'User license (one-to-one relationship, when relations are loaded)',
           },
           createdAt: {
             type: 'string',

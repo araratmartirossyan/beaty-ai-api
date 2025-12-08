@@ -2,8 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
+  OneToOne,
   ManyToMany,
+  JoinColumn,
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
@@ -25,7 +26,8 @@ export class License {
   @Column({ type: 'timestamp', nullable: true })
   expiresAt!: Date | null;
 
-  @ManyToOne(() => User, (user) => user.licenses)
+  @OneToOne(() => User, (user) => user.license, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
   user!: User;
 
   @ManyToMany(() => KnowledgeBase, (kb) => kb.licenses)

@@ -26,9 +26,8 @@ export const chat = async (req: Request, res: Response) => {
     if (!license) {
       return res.status(404).json({ message: 'License not found' });
     }
-
     // Check ownership
-    if (user.role !== 'ADMIN' && license.user.id !== user.userId) {
+    if (license.user.id !== user.userId) {
       return res.status(403).json({ message: 'Forbidden access to this license' });
     }
 

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { License } from './License';
 
 export enum UserRole {
@@ -24,8 +24,8 @@ export class User {
   })
   role!: UserRole;
 
-  @OneToMany(() => License, (license) => license.user)
-  licenses!: License[];
+  @OneToOne(() => License, (license) => license.user)
+  license!: License | null;
 
   @CreateDateColumn()
   createdAt!: Date;

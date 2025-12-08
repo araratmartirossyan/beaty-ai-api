@@ -8,7 +8,7 @@ const userRepository = AppDataSource.getRepository(User);
 export const listUsers = async (req: Request, res: Response) => {
   try {
     const users = await userRepository.find({
-      relations: ['licenses'],
+      relations: ['license'],
       order: { createdAt: 'DESC' },
     });
 
@@ -28,7 +28,7 @@ export const getUser = async (req: Request, res: Response) => {
   try {
     const user = await userRepository.findOne({
       where: { id },
-      relations: ['licenses'],
+      relations: ['license'],
     });
 
     if (!user) {
@@ -54,17 +54,18 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     const user = await userRepository.findOne({
       where: { id },
-      relations: ['licenses'],
+      relations: ['license'],
     });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user has licenses
-    if (user.licenses && user.licenses.length > 0) {
+    // Check if user has a license
+    if (user.license) {
       return res.status(400).json({
-        message: `Cannot delete user with ${user.licenses.length} active license(s). Please delete or reassign licenses first.`,
+        message: 'Cannot delete user with an active license. Please delete the license first.',
+        licenseId: user.license.id,
       });
     }
 

@@ -8,12 +8,13 @@ import path from 'path';
 import { ragService } from '../services/ragService';
 
 // Lazy load pdf-parse only when needed to avoid memory issues at startup
-let pdfParse: any = null;
+let PDFParse: any = null;
 const getPdfParse = () => {
-  if (!pdfParse) {
-    pdfParse = require('pdf-parse');
+  if (!PDFParse) {
+    const pdfParseModule = require('pdf-parse');
+    PDFParse = pdfParseModule.PDFParse;
   }
-  return pdfParse;
+  return PDFParse;
 };
 
 const kbRepository = AppDataSource.getRepository(KnowledgeBase);
@@ -56,6 +57,46 @@ export const getKnowledgeBase = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error fetching knowledge base' });
+  }
+};
+
+export const updateKnowledgeBase = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, description, promptInstructions } = req.body;
+
+  try {
+    const kb = await kbRepository.findOne({
+      where: { id },
+      relations: ['licenses', 'pdfDocuments'],
+    });
+
+    if (!kb) {
+      return res.status(404).json({ message: 'Knowledge base not found' });
+    }
+
+    // Update only provided fields
+    if (name !== undefined) {
+      kb.name = name;
+    }
+    if (description !== undefined) {
+      kb.description = description;
+    }
+    if (promptInstructions !== undefined) {
+      kb.promptInstructions = promptInstructions || null;
+    }
+
+    await kbRepository.save(kb);
+
+    // Reload with relations
+    const updatedKb = await kbRepository.findOne({
+      where: { id },
+      relations: ['licenses', 'pdfDocuments'],
+    });
+
+    return res.json(updatedKb);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error updating knowledge base' });
   }
 };
 
@@ -135,9 +176,11 @@ export const uploadPDF = async (req: Request, res: Response) => {
       try {
         // Read and parse PDF (lazy load pdf-parse to avoid memory issues at startup)
         const dataBuffer = fs.readFileSync(file.path);
-        const pdfParseFn = getPdfParse();
-        const pdfData = await pdfParseFn(dataBuffer);
-        const textContent = pdfData.text;
+        const PDFParseClass = getPdfParse();
+        const parser = new PDFParseClass({ data: dataBuffer });
+        const result = await parser.getText();
+        const textContent = result.text;
+        const pageCount = result.pages?.length || 0;
 
         if (!textContent || textContent.trim().length === 0) {
           fs.unlinkSync(file.path);
@@ -155,7 +198,7 @@ export const uploadPDF = async (req: Request, res: Response) => {
           knowledgeBaseId: kbId,
           metadata: {
             fileSize: file.size,
-            pageCount: pdfData.numpages,
+            pageCount: pageCount,
             uploadedAt: new Date().toISOString(),
           },
         });
@@ -166,13 +209,13 @@ export const uploadPDF = async (req: Request, res: Response) => {
         await ragService.ingestDocument(kbId, textContent, {
           fileName: file.originalname,
           documentId: document.id,
-          pageCount: pdfData.numpages,
+          pageCount: pageCount,
         });
 
         uploadedDocuments.push({
           id: document.id,
           fileName: document.fileName,
-          pageCount: pdfData.numpages,
+          pageCount: pageCount,
           createdAt: document.createdAt,
         });
       } catch (error: any) {

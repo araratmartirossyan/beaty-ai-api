@@ -70,7 +70,7 @@ export class RagService {
       prompt = `${promptInstructions}\n\n`;
     }
     prompt += `Answer the question based only on the following context:\n\n${context}\n\nQuestion: ${question}`;
-
+    console.log(prompt, 'PROMPT');
     const llm = await LLMProviderService.getLLM();
     const response = await llm.invoke(prompt);
     return response.content;

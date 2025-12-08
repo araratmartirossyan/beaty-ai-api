@@ -6,6 +6,7 @@ import {
   getKnowledgeBase,
   uploadPDF,
   deleteKnowledgeBase,
+  updateKnowledgeBase,
 } from '../controllers/kbController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -167,6 +168,68 @@ router.post('/attach', roleGuard([UserRole.ADMIN]), attachToLicense);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
+
+/**
+ * @swagger
+ * /knowledge-bases/{id}:
+ *   put:
+ *     summary: Update a knowledge base (Admin only)
+ *     tags: [Knowledge Bases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Knowledge Base ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Knowledge Base name
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Knowledge Base description
+ *               promptInstructions:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Custom prompt instructions for this knowledge base
+ *     responses:
+ *       200:
+ *         description: Knowledge base updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/KnowledgeBase'
+ *       404:
+ *         description: Knowledge base not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error updating knowledge base
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateKnowledgeBase);
 
 /**
  * @swagger

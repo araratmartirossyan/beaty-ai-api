@@ -37,14 +37,11 @@ export const register = async (req: Request, res: Response) => {
 export const login = async ({ body: { email, password } }: Request, res: Response) => {
   try {
     const user = await userRepository.findOneBy({ email });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const license = await licenseRepository.findOneBy({ user: { id: user.id } });
-
-    if (!license) {
-      return res.status(401).json({ message: 'License not found' });
-    }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
