@@ -3,8 +3,10 @@ import { AppDataSource } from '../data-source';
 import { User, UserRole } from '../entities/User';
 import bcrypt from 'bcryptjs';
 import { signToken } from '../utils/jwt';
+import { License } from '../entities/License';
 
 const userRepository = AppDataSource.getRepository(User);
+const licenseRepository = AppDataSource.getRepository(License);
 
 export const register = async (req: Request, res: Response) => {
   const { email, password, role } = req.body;
@@ -32,13 +34,16 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
+export const login = async ({ body: { email, password } }: Request, res: Response) => {
   try {
     const user = await userRepository.findOneBy({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    const license = await licenseRepository.findOneBy({ user: { id: user.id } });
+
+    if (!license) {
+      return res.status(401).json({ message: 'License not found' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
