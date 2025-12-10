@@ -121,6 +121,7 @@ const swaggerDefinition = {
             type: 'object',
             nullable: true,
             description: 'Deprecated: Metadata about uploaded documents (use pdfDocuments instead)',
+            deprecated: true,
           },
           pdfDocuments: {
             type: 'array',
@@ -128,6 +129,13 @@ const swaggerDefinition = {
               $ref: '#/components/schemas/Document',
             },
             description: 'List of uploaded PDF documents',
+          },
+          licenses: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/License',
+            },
+            description: 'Licenses that have access to this knowledge base',
           },
           promptInstructions: {
             type: 'string',
@@ -239,6 +247,12 @@ const swaggerDefinition = {
           },
           user: {
             $ref: '#/components/schemas/User',
+          },
+          license: {
+            type: 'string',
+            nullable: true,
+            description: 'License key for the user (if the user has a license)',
+            example: 'c5e0f8b0-1234-4cde-9abc-9876543210ff',
           },
         },
       },
