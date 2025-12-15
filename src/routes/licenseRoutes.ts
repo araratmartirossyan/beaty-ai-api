@@ -5,6 +5,7 @@ import {
   deactivateLicense,
   activateLicense,
   getLicense,
+  updateLicenseValidity,
 } from '../controllers/licenseController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -131,6 +132,62 @@ router.get('/', roleGuard([UserRole.ADMIN]), listLicenses);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', roleGuard([UserRole.ADMIN]), getLicense);
+
+/**
+ * @swagger
+ * /licenses/{id}:
+ *   put:
+ *     summary: Update a license validity period (Admin only)
+ *     tags: [Licenses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: License ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateLicenseRequest'
+ *     responses:
+ *       200:
+ *         description: Updated license
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/License'
+ *       400:
+ *         description: Invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: License not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error updating license
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateLicenseValidity);
 
 /**
  * @swagger

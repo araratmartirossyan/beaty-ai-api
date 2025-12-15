@@ -7,6 +7,7 @@ import {
   uploadPDF,
   deleteKnowledgeBase,
   updateKnowledgeBase,
+  deleteKnowledgeBaseDocument,
 } from '../controllers/kbController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -324,6 +325,64 @@ router.put('/:id', roleGuard([UserRole.ADMIN]), updateKnowledgeBase);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10), uploadPDF);
+
+/**
+ * @swagger
+ * /knowledge-bases/{id}/documents/{documentId}:
+ *   delete:
+ *     summary: Delete a document from a knowledge base by document ID (Admin only)
+ *     tags: [Knowledge Bases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Knowledge Base ID
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Document ID
+ *     responses:
+ *       200:
+ *         description: Document deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Document deleted successfully
+ *                 documentId:
+ *                   type: string
+ *                   format: uuid
+ *       404:
+ *         description: Document not found in this knowledge base
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error deleting document
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.delete('/:id/documents/:documentId', roleGuard([UserRole.ADMIN]), deleteKnowledgeBaseDocument);
 
 /**
  * @swagger

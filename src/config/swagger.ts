@@ -44,6 +44,50 @@ const swaggerDefinition = {
             enum: ['ADMIN', 'CUSTOMER'],
             description: 'User role',
           },
+          legalName: {
+            type: 'string',
+            nullable: true,
+            description: 'Legal name of the customer/company',
+          },
+          centerName: {
+            type: 'string',
+            nullable: true,
+            description: 'Center name',
+          },
+          customerStatus: {
+            type: 'string',
+            enum: [
+              'Activation Request',
+              'In Progress',
+              'In Test',
+              'Active',
+              'Unpaid',
+              'Terminated',
+              'Terminated - Blacklist',
+              'Demo',
+            ],
+            description: 'Customer status',
+          },
+          contactPerson: {
+            type: 'string',
+            nullable: true,
+            description: 'Primary contact person',
+          },
+          contactNumber: {
+            type: 'string',
+            nullable: true,
+            description: 'Primary contact number',
+          },
+          address: {
+            type: 'string',
+            nullable: true,
+            description: 'Customer address',
+          },
+          assignedAgentFullName: {
+            type: 'string',
+            nullable: true,
+            description: 'Assigned agent full name',
+          },
           license: {
             $ref: '#/components/schemas/License',
             nullable: true,
@@ -223,6 +267,44 @@ const swaggerDefinition = {
             default: 'CUSTOMER',
             description: 'User role (defaults to CUSTOMER)',
           },
+          legalName: {
+            type: 'string',
+            nullable: true,
+          },
+          centerName: {
+            type: 'string',
+            nullable: true,
+          },
+          customerStatus: {
+            type: 'string',
+            enum: [
+              'Activation Request',
+              'In Progress',
+              'In Test',
+              'Active',
+              'Unpaid',
+              'Terminated',
+              'Terminated - Blacklist',
+              'Demo',
+            ],
+            nullable: true,
+          },
+          contactPerson: {
+            type: 'string',
+            nullable: true,
+          },
+          contactNumber: {
+            type: 'string',
+            nullable: true,
+          },
+          address: {
+            type: 'string',
+            nullable: true,
+          },
+          assignedAgentFullName: {
+            type: 'string',
+            nullable: true,
+          },
         },
       },
       LoginRequest: {
@@ -271,6 +353,19 @@ const swaggerDefinition = {
             description: 'Number of days until license expires (optional, if not provided license never expires)',
           },
         },
+      },
+      UpdateLicenseRequest: {
+        type: 'object',
+        description:
+          'Update license validity period. Provide a positive number to set expiry to now + days, or null to clear expiry (never expires).',
+        properties: {
+          validityPeriodDays: {
+            type: 'number',
+            nullable: true,
+            minimum: 1,
+          },
+        },
+        required: ['validityPeriodDays'],
       },
       CreateKnowledgeBaseRequest: {
         type: 'object',

@@ -3,6 +3,7 @@ import { AppDataSource } from '../data-source';
 import { License } from '../entities/License';
 import { User } from '../entities/User';
 import { sanitizeUser } from '../utils/userUtils';
+import { randomUUID } from 'crypto';
 
 const licenseRepository = AppDataSource.getRepository(License);
 const userRepository = AppDataSource.getRepository(User);
@@ -48,11 +49,8 @@ export const createLicense = async (req: Request, res: Response) => {
       expiresAt.setDate(expiresAt.getDate() + validityPeriodDays);
     }
 
-    // Dynamic import for uuid (ESM module)
-    const { v4: uuidv4 } = await import('uuid');
-
     const license = licenseRepository.create({
-      key: uuidv4(),
+      key: randomUUID(),
       user: { id: user.id },
       expiresAt,
       isActive: true,
@@ -82,7 +80,10 @@ export const createLicense = async (req: Request, res: Response) => {
 
 export const listLicenses = async (req: Request, res: Response) => {
   try {
-    const licenses = await licenseRepository.find({ relations: ['user', 'knowledgeBases'] });
+    const licenses = await licenseRepository.find({
+      relations: ['user', 'knowledgeBases'],
+      order: { createdAt: 'ASC' }, // oldest -> newest
+    });
     // Add validation status and sanitize user data
     const licensesWithStatus = licenses.map((license) => ({
       ...license,
@@ -93,6 +94,59 @@ export const listLicenses = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error listing licenses' });
+  }
+};
+
+export const updateLicenseValidity = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { validityPeriodDays } = req.body;
+
+  try {
+    const license = await licenseRepository.findOne({
+      where: { id },
+      relations: ['user', 'knowledgeBases'],
+    });
+
+    if (!license) {
+      return res.status(404).json({ message: 'License not found' });
+    }
+
+    if (validityPeriodDays === null || validityPeriodDays === undefined) {
+      // Allow clearing expiration (never expires)
+      license.expiresAt = null;
+    } else if (
+      typeof validityPeriodDays === 'number' &&
+      Number.isFinite(validityPeriodDays) &&
+      validityPeriodDays > 0
+    ) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + validityPeriodDays);
+      license.expiresAt = expiresAt;
+    } else {
+      return res.status(400).json({
+        message: 'validityPeriodDays must be a positive number, null, or omitted',
+      });
+    }
+
+    await licenseRepository.save(license);
+
+    const updatedLicense = await licenseRepository.findOne({
+      where: { id: license.id },
+      relations: ['user', 'knowledgeBases'],
+    });
+
+    if (!updatedLicense) {
+      return res.status(500).json({ message: 'Error retrieving updated license' });
+    }
+
+    return res.json({
+      ...updatedLicense,
+      user: sanitizeUser(updatedLicense.user),
+      isValid: isLicenseValid(updatedLicense),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error updating license' });
   }
 };
 

@@ -65,6 +65,11 @@ export class RagService {
   }
 
   async ingestDocument(kbId: string, text: string, metadata: any) {
+    const start = Date.now();
+    console.log('[ragService.ingestDocument] start', {
+      kbId,
+      textLength: text?.length,
+    });
     await this.ensurePgVectorSchema();
     const config = await getGlobalConfig();
     const splitter = new RecursiveCharacterTextSplitter({
@@ -73,9 +78,30 @@ export class RagService {
     });
 
     const docs = await splitter.createDocuments([text], metadata);
-    const embeddings = await EmbeddingsProviderService.getEmbeddings();
-    const store = new PostgresVectorStore(embeddings, pgPool, kbId);
-    await store.addDocuments(docs);
+    console.log('[ragService.ingestDocument] split docs', {
+      kbId,
+      chunkCount: docs.length,
+      metadataKeys: Object.keys(metadata || {}),
+    });
+    try {
+      console.log('[ragService.ingestDocument] get embeddings', { kbId });
+      const embeddings = await EmbeddingsProviderService.getEmbeddings();
+      console.log('[ragService.ingestDocument] got embeddings', { kbId });
+      const store = new PostgresVectorStore(embeddings, pgPool, kbId);
+      console.log('[ragService.ingestDocument] add documents', { kbId, rows: docs.length });
+      await store.addDocuments(docs);
+      console.log('[ragService.ingestDocument] stored embeddings', {
+        kbId,
+        rows: docs.length,
+        ms: Date.now() - start,
+      });
+    } catch (err: any) {
+      console.error('[ragService.ingestDocument] error', {
+        kbId,
+        message: err?.message,
+      });
+      throw err;
+    }
   }
 
   async query(kbId: string, question: string, promptInstructions: string | null = null) {
@@ -105,6 +131,19 @@ export class RagService {
     const embeddings = await EmbeddingsProviderService.getEmbeddings();
     const store = new PostgresVectorStore(embeddings, pgPool, kbId);
     await store.deleteByKnowledgeBase();
+  }
+
+  async deleteDocument(kbId: string, documentId: string) {
+    await this.ensurePgVectorSchema();
+    const client = await pgPool.connect();
+    try {
+      await client.query(`DELETE FROM kb_documents WHERE kb_id = $1 AND (metadata->>'documentId') = $2`, [
+        kbId,
+        documentId,
+      ]);
+    } finally {
+      client.release();
+    }
   }
 }
 

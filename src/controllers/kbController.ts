@@ -138,7 +138,10 @@ export const uploadPDF = async (req: Request, res: Response) => {
   const { id: kbId } = req.params; // Get kbId from URL parameter
   const files = req.files as Express.Multer.File[];
 
+  console.log('[uploadPDF] start', { kbId, fileCount: files?.length || 0 });
+
   if (!files || files.length === 0) {
+    console.log('[uploadPDF] no files provided');
     return res.status(400).json({ message: 'No PDF files uploaded' });
   }
 
@@ -159,6 +162,7 @@ export const uploadPDF = async (req: Request, res: Response) => {
     });
 
     if (!kb) {
+      console.log('[uploadPDF] kb not found', { kbId });
       // Clean up all uploaded files
       files.forEach((file) => {
         if (fs.existsSync(file.path)) {
@@ -174,11 +178,20 @@ export const uploadPDF = async (req: Request, res: Response) => {
     // Process each file
     for (const file of files) {
       try {
+        console.log('[uploadPDF] processing file', { kbId, fileName: file.originalname, size: file.size });
         // Read and parse PDF (lazy load pdf-parse to avoid memory issues at startup)
         const dataBuffer = fs.readFileSync(file.path);
+        console.log('[uploadPDF] dataBuffer length', dataBuffer.length);
         const PDFParseClass = getPdfParse();
+        console.log('[uploadPDF] parsing pdf', { kbId, fileName: file.originalname });
         const parser = new PDFParseClass({ data: dataBuffer });
         const result = await parser.getText();
+        console.log('[uploadPDF] parsed pdf', {
+          kbId,
+          fileName: file.originalname,
+          hasText: !!result?.text,
+          pages: result?.pages?.length,
+        });
         const textContent = result.text;
         const pageCount = result.pages?.length || 0;
 
@@ -206,11 +219,13 @@ export const uploadPDF = async (req: Request, res: Response) => {
         await documentRepository.save(document);
 
         // Ingest document text into RAG service (using kbId, not licenseKey)
+        console.log('[uploadPDF] ingesting into rag', { kbId, fileName: file.originalname, documentId: document.id });
         await ragService.ingestDocument(kbId, textContent, {
           fileName: file.originalname,
           documentId: document.id,
           pageCount: pageCount,
         });
+        console.log('[uploadPDF] ingested into rag', { kbId, fileName: file.originalname, documentId: document.id });
 
         uploadedDocuments.push({
           id: document.id,
@@ -218,6 +233,7 @@ export const uploadPDF = async (req: Request, res: Response) => {
           pageCount: pageCount,
           createdAt: document.createdAt,
         });
+        console.log('[uploadPDF] file processed', { kbId, fileName: file.originalname, documentId: document.id });
       } catch (error: any) {
         console.error(`Error processing file ${file.originalname}:`, error);
         // Clean up file on error
@@ -238,6 +254,12 @@ export const uploadPDF = async (req: Request, res: Response) => {
         errors,
       });
     }
+
+    console.log('[uploadPDF] completed', {
+      kbId,
+      uploadedCount: uploadedDocuments.length,
+      errorCount: errors.length,
+    });
 
     return res.status(201).json({
       message: `${uploadedDocuments.length} PDF file(s) uploaded and ingested successfully`,
@@ -313,5 +335,39 @@ export const deleteKnowledgeBase = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting knowledge base:', error);
     return res.status(500).json({ message: 'Error deleting knowledge base' });
+  }
+};
+
+export const deleteKnowledgeBaseDocument = async (req: Request, res: Response) => {
+  const { id: kbId, documentId } = req.params;
+
+  try {
+    const doc = await documentRepository.findOne({
+      where: { id: documentId, knowledgeBaseId: kbId },
+    });
+
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found in this knowledge base' });
+    }
+
+    // Delete vector chunks for this document (so RAG stops using it immediately)
+    await ragService.deleteDocument(kbId, documentId);
+
+    // Delete file from filesystem (best-effort)
+    if (doc.filePath && fs.existsSync(doc.filePath)) {
+      try {
+        fs.unlinkSync(doc.filePath);
+      } catch (error) {
+        console.error(`Error deleting file ${doc.filePath}:`, error);
+      }
+    }
+
+    // Delete DB row
+    await documentRepository.remove(doc);
+
+    return res.json({ message: 'Document deleted successfully', documentId });
+  } catch (error) {
+    console.error('Error deleting knowledge base document:', error);
+    return res.status(500).json({ message: 'Error deleting document' });
   }
 };
