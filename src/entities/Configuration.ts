@@ -1,5 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ValueTransformer } from 'typeorm';
 import { LLMProvider } from './KnowledgeBase';
+
+// Transformer to convert numeric strings to numbers
+const numericTransformer: ValueTransformer = {
+  to: (value: number | null) => value,
+  from: (value: string | null) => (value === null ? null : parseFloat(value)),
+};
 
 @Entity()
 export class Configuration {
@@ -7,9 +13,8 @@ export class Configuration {
   id!: string;
 
   @Column({ unique: true, default: 'default' })
-  key!: string; // 'default' for global config
+  key!: string;
 
-  // AI Configuration (Global)
   @Column({
     type: 'simple-enum',
     enum: LLMProvider,
@@ -18,28 +23,28 @@ export class Configuration {
   llmProvider!: LLMProvider;
 
   @Column({ type: 'varchar', nullable: true })
-  model!: string | null; // Model name (e.g., 'gpt-4', 'gemini-pro', 'claude-3-sonnet-20240229')
+  model!: string | null;
 
-  @Column('decimal', { nullable: true, precision: 3, scale: 2 })
-  temperature!: number | null; // 0.0 to 2.0 (Gemini), 0.0 to 1.0 (OpenAI/Anthropic)
-
-  @Column('int', { nullable: true })
-  maxTokens!: number | null; // Max tokens to generate (OpenAI/Anthropic: maxTokens, Gemini: maxOutputTokens)
-
-  @Column('decimal', { nullable: true, precision: 3, scale: 2 })
-  topP!: number | null; // Nucleus sampling parameter (0.0 to 1.0)
+  @Column('decimal', { nullable: true, precision: 3, scale: 2, transformer: numericTransformer })
+  temperature!: number | null;
 
   @Column('int', { nullable: true })
-  topK!: number | null; // Top-k sampling (Gemini/Anthropic)
+  maxTokens!: number | null;
 
-  @Column('decimal', { nullable: true, precision: 3, scale: 2 })
-  frequencyPenalty!: number | null; // Frequency penalty (OpenAI only: -2.0 to 2.0)
+  @Column('decimal', { nullable: true, precision: 3, scale: 2, transformer: numericTransformer })
+  topP!: number | null;
 
-  @Column('decimal', { nullable: true, precision: 3, scale: 2 })
-  presencePenalty!: number | null; // Presence penalty (OpenAI only: -2.0 to 2.0)
+  @Column('int', { nullable: true })
+  topK!: number | null;
+
+  @Column('decimal', { nullable: true, precision: 3, scale: 2, transformer: numericTransformer })
+  frequencyPenalty!: number | null;
+
+  @Column('decimal', { nullable: true, precision: 3, scale: 2, transformer: numericTransformer })
+  presencePenalty!: number | null;
 
   @Column('simple-array', { nullable: true })
-  stopSequences!: string[] | null; // Stop sequences (Gemini/Anthropic)
+  stopSequences!: string[] | null;
 
   @CreateDateColumn()
   createdAt!: Date;

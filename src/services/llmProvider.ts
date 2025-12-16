@@ -7,96 +7,71 @@ import { Configuration } from '../entities/Configuration';
 import { AppDataSource } from '../data-source';
 
 const configRepository = AppDataSource.getRepository(Configuration);
-const DEFAULT_CONFIG_KEY = 'default';
 
-/**
- * Get global AI configuration
- */
-const getGlobalConfig = async (): Promise<Configuration> => {
-  let config = await configRepository.findOne({ where: { key: DEFAULT_CONFIG_KEY } });
-  if (!config) {
-    // Create default config if it doesn't exist
-    config = configRepository.create({
-      key: DEFAULT_CONFIG_KEY,
-      llmProvider: LLMProvider.OPENAI,
-      // Strong defaults for RAG (can be changed via config endpoints)
-      model: 'gpt-5',
-      temperature: 0.1,
-      maxTokens: 1200,
-      topP: 1,
-      topK: null,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      stopSequences: null,
-    });
-    await configRepository.save(config);
-  }
-  return config;
+const DEFAULT_CONFIG: Partial<Configuration> = {
+  llmProvider: LLMProvider.OPENAI,
+  model: 'gpt-4o',
+  temperature: null,
+  maxTokens: null,
+  topP: null,
+  topK: null,
+  frequencyPenalty: null,
+  presencePenalty: null,
+  stopSequences: null,
 };
 
 export class LLMProviderService {
   static async getLLM(): Promise<BaseLanguageModel> {
-    const config = await getGlobalConfig();
+    const config = (await configRepository.findOne({ where: { key: 'default' } })) || (DEFAULT_CONFIG as Configuration);
     const provider = config.llmProvider || LLMProvider.OPENAI;
 
     switch (provider) {
-      case LLMProvider.OPENAI:
-        if (!process.env.OPENAI_API_KEY) {
-          throw new Error('OPENAI_API_KEY is not set in environment variables');
-        }
-        const openAIConfig: any = {
-          modelName: config.model || 'gpt-4o',
+      case LLMProvider.OPENAI: {
+        if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
+        return new ChatOpenAI({
+          modelName: config?.model || 'gpt-4o',
           openAIApiKey: process.env.OPENAI_API_KEY,
-        };
-        if (config.temperature !== null) openAIConfig.temperature = config.temperature;
-        if (config.maxTokens !== null) openAIConfig.maxTokens = config.maxTokens;
-        if (config.topP !== null) openAIConfig.topP = config.topP;
-        if (config.frequencyPenalty !== null) openAIConfig.frequencyPenalty = config.frequencyPenalty;
-        if (config.presencePenalty !== null) openAIConfig.presencePenalty = config.presencePenalty;
-        return new ChatOpenAI(openAIConfig);
+          temperature: 1.0,
+          maxTokens: config.maxTokens || 10000,
+          topP: 1.0,
+        });
+      }
 
-      case LLMProvider.GEMINI:
-        if (!process.env.GEMINI_API_KEY) {
-          throw new Error('GEMINI_API_KEY is not set in environment variables');
-        }
-        const geminiConfig: any = {
+      case LLMProvider.GEMINI: {
+        if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
+        const geminiConfig = {
           model: config.model || 'gemini-pro',
           apiKey: process.env.GEMINI_API_KEY,
+          ...(config.temperature !== null ? { temperature: config.temperature } : {}),
+          ...(config.maxTokens !== null ? { maxOutputTokens: config.maxTokens } : {}),
+          ...(config.topP !== null ? { topP: config.topP } : {}),
+          ...(config.topK !== null ? { topK: config.topK } : {}),
+          ...(config.stopSequences && config.stopSequences.length > 0 ? { stopSequences: config.stopSequences } : {}),
         };
-        if (config.temperature !== null) geminiConfig.temperature = config.temperature;
-        if (config.maxTokens !== null) geminiConfig.maxOutputTokens = config.maxTokens;
-        if (config.topP !== null) geminiConfig.topP = config.topP;
-        if (config.topK !== null) geminiConfig.topK = config.topK;
-        if (config.stopSequences && config.stopSequences.length > 0) {
-          geminiConfig.stopSequences = config.stopSequences;
-        }
         return new ChatGoogleGenerativeAI(geminiConfig);
+      }
 
-      case LLMProvider.ANTHROPIC:
-        if (!process.env.ANTHROPIC_API_KEY) {
-          throw new Error('ANTHROPIC_API_KEY is not set in environment variables');
-        }
-        const anthropicConfig: any = {
+      case LLMProvider.ANTHROPIC: {
+        if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
+        const anthropicConfig = {
           model: config.model || 'claude-3-sonnet-20240229',
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          ...(config.temperature !== null ? { temperature: config.temperature } : {}),
+          ...(config.maxTokens !== null ? { maxTokens: config.maxTokens } : {}),
+          ...(config.topP !== null ? { topP: config.topP } : {}),
+          ...(config.topK !== null ? { topK: config.topK } : {}),
+          ...(config.stopSequences && config.stopSequences.length > 0 ? { stopSequences: config.stopSequences } : {}),
         };
-        if (config.temperature !== null) anthropicConfig.temperature = config.temperature;
-        if (config.maxTokens !== null) anthropicConfig.maxTokens = config.maxTokens;
-        if (config.topP !== null) anthropicConfig.topP = config.topP;
-        if (config.topK !== null) anthropicConfig.topK = config.topK;
-        if (config.stopSequences && config.stopSequences.length > 0) {
-          anthropicConfig.stopSequences = config.stopSequences;
-        }
         return new ChatAnthropic(anthropicConfig) as BaseLanguageModel;
+      }
 
-      default:
-        if (!process.env.OPENAI_API_KEY) {
-          throw new Error('OPENAI_API_KEY is not set in environment variables');
-        }
+      default: {
+        if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
         return new ChatOpenAI({
-          modelName: config.model || 'gpt-4o',
+          modelName: 'gpt-4o',
           openAIApiKey: process.env.OPENAI_API_KEY,
         });
+      }
     }
   }
 }

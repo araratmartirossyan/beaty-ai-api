@@ -136,7 +136,7 @@ export class RagService {
       promptInstructions ? `Knowledge base instructions:\n${promptInstructions}` : null,
       `You are a RAG assistant. Answer using ONLY the provided CONTEXT and the conversation history.`,
       `If the answer is not in the context, say: "I don't have that information in the uploaded documents."`,
-      `Return the answer in Markdown.`,
+      `Return the answer in Markdown ONLY.`,
       `When possible, include a short "Sources" section listing which Source numbers you used.`,
     ]
       .filter(Boolean)
@@ -169,7 +169,7 @@ export class RagService {
           const t = (m as any)?._getType?.() || (m as any)?.constructor?.name || 'message';
           return `${t}: ${(m as any).content}`;
         })
-        .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown.`;
+        .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`;
       const response = await llm.invoke(prompt);
       return (response as any)?.content ?? String(response);
     }
