@@ -34,6 +34,9 @@ export class LLMProviderService {
           temperature: 1.0,
           maxTokens: config.maxTokens || 10000,
           topP: 1.0,
+          frequencyPenalty: config.frequencyPenalty || 0.0,
+          presencePenalty: config.presencePenalty || 0.0,
+          stopSequences: config.stopSequences || undefined,
         });
       }
 
@@ -42,11 +45,11 @@ export class LLMProviderService {
         const geminiConfig = {
           model: config.model || 'gemini-pro',
           apiKey: process.env.GEMINI_API_KEY,
-          ...(config.temperature !== null ? { temperature: config.temperature } : {}),
-          ...(config.maxTokens !== null ? { maxOutputTokens: config.maxTokens } : {}),
-          ...(config.topP !== null ? { topP: config.topP } : {}),
-          ...(config.topK !== null ? { topK: config.topK } : {}),
-          ...(config.stopSequences && config.stopSequences.length > 0 ? { stopSequences: config.stopSequences } : {}),
+          temperature: config.temperature || 1.0,
+          maxOutputTokens: config.maxTokens || 10000,
+          topP: config.topP || 1.0,
+          topK: config.topK || 0.0,
+          stopSequences: config.stopSequences || undefined,
         };
         return new ChatGoogleGenerativeAI(geminiConfig);
       }
@@ -56,11 +59,11 @@ export class LLMProviderService {
         const anthropicConfig = {
           model: config.model || 'claude-3-sonnet-20240229',
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-          ...(config.temperature !== null ? { temperature: config.temperature } : {}),
-          ...(config.maxTokens !== null ? { maxTokens: config.maxTokens } : {}),
-          ...(config.topP !== null ? { topP: config.topP } : {}),
-          ...(config.topK !== null ? { topK: config.topK } : {}),
-          ...(config.stopSequences && config.stopSequences.length > 0 ? { stopSequences: config.stopSequences } : {}),
+          temperature: config.temperature || 1.0,
+          maxTokens: config.maxTokens || 10000,
+          topP: config.topP || 1.0,
+          topK: config.topK || 0.0,
+          stopSequences: config.stopSequences || undefined,
         };
         return new ChatAnthropic(anthropicConfig) as BaseLanguageModel;
       }
