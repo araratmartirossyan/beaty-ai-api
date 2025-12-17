@@ -11,7 +11,12 @@ const DEFAULT_CONFIG_KEY = 'default';
 const aiConfigSchema = z.object({
   model: z.string().trim().optional().nullable(),
   llmProvider: z.nativeEnum(LLMProvider).optional(),
-  temperature: z.coerce.number().min(0).max(2).optional().nullable(),
+  temperature: z.coerce
+    .number()
+    .min(0)
+    .max(0.3) // clamp to safe RAG range to limit hallucinations
+    .optional()
+    .nullable(),
   maxTokens: z.coerce.number().int().positive().optional().nullable(),
   topP: z.coerce.number().min(0).max(1).optional().nullable(),
   topK: z.coerce.number().int().nonnegative().optional().nullable(),

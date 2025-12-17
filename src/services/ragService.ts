@@ -55,10 +55,10 @@ export class RagService {
       `);
       await client.query(`CREATE INDEX IF NOT EXISTS kb_documents_kb_id_idx ON kb_documents (kb_id);`);
       await client.query(`
-        CREATE INDEX IF NOT EXISTS kb_documents_embedding_idx
+        CREATE INDEX IF NOT EXISTS kb_documents_embedding_hnsw_idx
         ON kb_documents
-        USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 100);
+        USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64);
       `);
       pgVectorInitialized = true;
     } finally {
@@ -117,11 +117,22 @@ export class RagService {
     const store = new PostgresVectorStore(embeddings, pgPool, kbId);
 
     const queryVector = await embeddings.embedQuery(question);
-    const topK = Number(process.env.RAG_TOP_K || 8);
-    const results = await store.similaritySearchVectorWithScore(queryVector, Number.isFinite(topK) ? topK : 8);
+    const envTopK = Number(process.env.RAG_TOP_K || 4);
+    const topK = Number.isFinite(envTopK) ? Math.min(Math.max(envTopK, 2), 12) : 4;
+    const results = await store.similaritySearchVectorWithScore(queryVector, topK);
     if (results.length === 0) {
       return 'No documents found in this knowledge base. Please upload PDF documents first.';
     }
+    const sources = results.map(([doc]: [Document, number], idx: number) => {
+      const labels: string[] = [];
+      if (doc.metadata?.fileName) labels.push(String(doc.metadata.fileName));
+      if (doc.metadata?.documentId) labels.push(`documentId=${doc.metadata.documentId}`);
+      return {
+        label: labels.length ? labels.join(' | ') : 'unknown',
+        idx: idx + 1,
+      };
+    });
+
     const context = results
       .map(([doc, score]: [Document, number], idx: number) => {
         const sourceParts: string[] = [];
@@ -135,7 +146,7 @@ export class RagService {
     const systemRules = [
       promptInstructions ? `Knowledge base instructions:\n${promptInstructions}` : null,
       `You are a RAG assistant. Answer using ONLY the provided CONTEXT and the conversation history.`,
-      `If the answer is not in the context, say: "I don't have that information in the uploaded documents."`,
+      `If the answer is not in the context, respond exactly: "I don't have that information in the uploaded documents." Do not guess.`,
       `Return the answer in Markdown ONLY.`,
       `When possible, include a short "Sources" section listing which Source numbers you used.`,
     ]
@@ -161,7 +172,10 @@ export class RagService {
     const llm: any = await LLMProviderService.getLLM();
     try {
       const response = await llm.invoke(messages);
-      return (response as any)?.content ?? String(response);
+      const answer = (response as any)?.content ?? String(response);
+      const sourcesSection =
+        sources.length > 0 ? `\n\nSources:\n${sources.map((s) => `- Source ${s.idx}: ${s.label}`).join('\n')}` : '';
+      return `${answer}${sourcesSection}`;
     } catch (e) {
       // Fallback for providers/configs that don't accept structured chat messages
       const prompt = `${systemRules}\n\n${history
@@ -171,7 +185,10 @@ export class RagService {
         })
         .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`;
       const response = await llm.invoke(prompt);
-      return (response as any)?.content ?? String(response);
+      const answer = (response as any)?.content ?? String(response);
+      const sourcesSection =
+        sources.length > 0 ? `\n\nSources:\n${sources.map((s) => `- Source ${s.idx}: ${s.label}`).join('\n')}` : '';
+      return `${answer}${sourcesSection}`;
     }
   }
 
